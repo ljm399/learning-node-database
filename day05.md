@@ -347,6 +347,8 @@ HAVING total > 1;
 关键点：
 
 - **[ON UPDATE]** 主表主键更新时的联动策略（常见 `CASCADE`）
+  - 默认是restrict，即不允许修改相关键
+
 - **[ON DELETE]** 主表删除时策略（`CASCADE/SET NULL/RESTRICT`）
 
 示例：song 引用 singer
@@ -370,9 +372,11 @@ CREATE TABLE song (
 
 ### 5.3.多张表连接
 
-- 左连接
+- 左连接（推荐）
 - 右链接
 - 内连接
+  - 只有当两张表都符合条件才显示
+
 - 全连接
 
 连接查询把多张表按条件组合成一个结果集。
@@ -380,6 +384,8 @@ CREATE TABLE song (
 关键点：
 
 - **[内连接 INNER JOIN]** 只保留两边都匹配的行
+  - 没带 left、right、full即内连接
+
 - **[左连接 LEFT JOIN]** 左表全保留，右表匹配不到为 NULL
 - **[右连接 RIGHT JOIN]** 右表全保留（多数情况下可用 LEFT JOIN 互换顺序替代）
 - **[全连接 FULL JOIN]** MySQL 不直接支持，常用 `UNION` 模拟
@@ -439,7 +445,7 @@ CREATE TABLE student_course (
 - **[从 student 查 course]** `student -> student_course -> course`
 - **[从 course 查 student]** `course -> student_course -> student`
 
-示例：查询某学生选了哪些课
+示例：查询某学生（id为1）选了哪些课
 
 ```sql
 SELECT st.id AS student_id, st.name AS student_name,
@@ -449,3 +455,15 @@ JOIN student_course sc ON st.id = sc.student_id
 JOIN course c ON c.id = sc.course_id
 WHERE st.id = 1;
 ```
+
+查询某课程被那些学生选了
+
+```sql
+SELECT st.id AS student_id, st.name AS student_name,
+       c.id AS course_id, c.name AS course_name
+FROM course c
+left JOIN student_course sc ON st.id = sc.student_id
+left JOIN  student st ON st.id = sc.course_id
+WHERE c.name = '历史';
+```
+

@@ -138,8 +138,26 @@ coderhub 通常是一个“类社交/内容发布”的后端练习项目：
 
 ### 2.2.项目的搭建
 
+1. npm init -y
+2. src/main.js
+3. 安装nodemon
+   - npm install -g nodemon
+
 - 通过koa创建app
+  - 也可以通过http原生或者express，但推荐koa，因为TJ这个官网他主要维护koa
+
+- 安装koa
+  - npm i koa
+  - npm install koa-router koa-bodyparser koa-static
+    - 第一个解析路由
+    - 第二个解析请求体
+    - 第三个解析静态资源
+
 - 将一些常量保持.env
+  - npm i dotevt
+  - dotenv.config()
+  - {SERVER_PORT} = process.env
+
 
 项目初始化的目标是：跑起来一个最小 Koa 服务 + 能读取环境变量 + 有清晰目录结构。
 
@@ -168,14 +186,147 @@ console.log(process.env.APP_PORT);
   - router
   - controller
   - service
+  
 - 数据库封装
   - database.js
   - connection
+  
+
+#### database相关配置（位置放在app.js)
+
+- npm i mysql2
+
+```js
+const mysql = require('mysql2')
+
+// 1.创建连接池
+const mysqlConnectPool = mysql.createPool({
+  host:'localhost',
+  port:'3306',
+  user:'root',
+  password:'',
+  database:'coderhub',
+  connectionLimit:5
+})
+
+// 2.获取连接池中的链接是否失败
+mysqlConnectPool.getConnection((err, connection)=>{
+  // 1.判断是否连接失败
+  if(err) {
+    console.log(err,'获取连接失败');
+    return
+  }
+
+  // 2.获取connection，尝试和数据库建立连接
+  connection.connect(err => {
+    if(err) {
+      console.log(err,'连接失败');
+      return
+    }
+    console.log('连接成功');
+  })
+})
+
+// 3.获取连接池中的连接对象（promise）
+const connection = mysqlConnectPool.promise()
+exports.module = connection
+```
+
+#### database具体操作示例
+
+```js
+const connection = require("../app/database");
+class UserService {
+  async createUser(user) {
+    const { name, password } = user;
+
+    const statement = "INSERT INTO user(name, password) VALUES (?, ?)";
+
+    const result = await connection.execute(statement, [name, password]);
+    return result;
+  }
+}
+```
+
 - 中间件verifyUser
   - 用户名和密码不能为空
   - 用户名是否已经存在
+  - Middleware/
+  - utils
+    - handle-error.js
+  - config
+    - error.js
+
+#### verifyUser里面的问题`const [values]` 为什么要带 `[]`
+
+```js
+let a = [1,2]
+let [b,d,c] = a
+b
+1
+d
+2
+```
+
+你写：
+
+```js
+const [values] = await connection.execute(statement, [name]);
+```
+
+等价于：
+
+```js
+const result = await connection.execute(statement, [name]);
+const values = result[0]; // rows
+```
+
+也就是用 **数组解构** 直接把第 0 项（`rows`）取出来
+
+
+
+#### app.ctx.emit()问题
+
+- app.on要先注册再监听
+
+  - 方式(main.js里面导入注册器)
+
+    ```js
+    // 导入app
+    const app = require("./app");
+    const { SERVER_PORT } = require("./config/server");
+    
+    // 启动时 require('./utils/handle-error')，确保监听器被注册，否则non-error thrown
+    require("./utils/handle-error");
+    
+    // 启动app
+    app.listen(SERVER_PORT, () => {
+      console.log("koa服务器开启成功");
+    });
+    ```
+
+    
+
+
+
+#### 密码加密储存
+
 - 对密码进行加密存储中间件
   - 对密码进行md5加密，进行存储
+
+    - crypto是node内置的库
+    
+    ```js
+    const crypto = require("crypto");
+    function md5Password(password) {
+      const md5 = crypto.createHash("md5");
+      const md5pwd = md5.update(password).digest("hex");
+      return md5pwd;
+    }
+    module.exports = {
+      md5Password,
+    };
+    ```
 
 注册接口的核心流程：参数校验 -> 业务校验（用户名唯一）-> 密码加密 -> 入库 -> 返回结果。
 
@@ -220,6 +371,10 @@ async function verifyUser(ctx, next) {
 - **[密码加密]** 课程里用 md5 主要为了练习流程；实际项目更推荐 `bcrypt`/`argon2` + salt
 - **[统一错误]** 更推荐 `throw` + 统一错误处理中间件返回固定结构
 
+
+
+
+
 ### 2.4.登录的凭证
 
 - http是无状态的协议
@@ -235,15 +390,36 @@ async function verifyUser(ctx, next) {
 - **[Token(JWT)]** 服务端签发 token，客户端保存并在请求头携带（常见 `Authorization: Bearer xxx`）
 - **[安全]** Cookie 场景下注意 `HttpOnly/SameSite/Secure` 等属性
 
-示例：Koa 设置 Cookie
+
+
+### **[“客户端设置 cookie”]**（不重要因为公司都是服务器设置）
+
+- 更准确说：浏览器最终保存 cookie，但**通常由服务端设置 Set-Cookie**；前端 JS 也能写 `document.cookie`，但 HttpOnly 的 cookie 不能用 JS 读写
+
+- JS直接设置和获取cookie
 
 ```js
-ctx.cookies.set("token", "xxx", {
-  httpOnly: true,
-  sameSite: "lax",
-});
+clg(document.cookie)
 ```
 
-补充：
+- 设置cookie，同时设置过期时间（默认秒钟）
 
-- **[“客户端设置 cookie”]** 更准确说：浏览器最终保存 cookie，但**通常由服务端设置 Set-Cookie**；前端 JS 也能写 `document.cookie`，但 HttpOnly 的 cookie 不能用 JS 读写
+```js
+document.cookie = 'name=coderwhy;max-age=10';
+```
+
+- cookie的常见属性
+  - 设置时间
+    - expires（翻译到期）
+    - max-age
+  - 设置作用域（允许cookie发送给那些URL）
+    - domain：指定那些主机可以接受cookie
+      - 默认是origin
+      - 若指定domain则包含子域名
+    - Path：指定主机下那些路径可以接受cookie
+      - Path=/docs,则下列地址都会匹配
+        - /docs
+        - /docs/web
+
+
+
