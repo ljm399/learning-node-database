@@ -5,6 +5,8 @@ const {
   NAME_DOES_NOT_EXIST,
   INCORRECT_PASSWORD,
   UNAUTHORIZED,
+  OPERATION_IS_NOT_ALLOWED,
+  TARGET_IS_NOT_EXIST,
 } = require("../config/constant-errors");
 app.on("error", (error, ctx) => {
   let message = "";
@@ -42,6 +44,20 @@ app.on("error", (error, ctx) => {
       ctx.body = {
         code: -1005,
         message: "没有权限访问",
+        data: null,
+      };
+      break;
+    case OPERATION_IS_NOT_ALLOWED:
+      ctx.body = {
+        code: -1006,
+        message: "没有权限执行这个操作",
+        data: null,
+      };
+      break;
+    case TARGET_IS_NOT_EXIST:
+      ctx.body = {
+        code: -1006,
+        message: `${ctx.tableName}相关元素不存在`,
         data: null,
       };
       break;

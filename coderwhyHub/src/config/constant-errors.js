@@ -3,11 +3,15 @@ const NAME_ALREADY_EXISTS = "name_already_exists";
 const NAME_DOES_NOT_EXIST = "name_does_not_exist";
 const INCORRECT_PASSWORD = "incorrect_password"
 const UNAUTHORIZED = "unauthorized"
+const OPERATION_IS_NOT_ALLOWED = "operation_is_not_allowed"
+const TARGET_IS_NOT_EXIST = "target_is_not_exist"
 
 module.exports = {
   NAME_OR_PW_IS_NULL,
   NAME_ALREADY_EXISTS,
   NAME_DOES_NOT_EXIST,
   INCORRECT_PASSWORD,
-  UNAUTHORIZED
+  UNAUTHORIZED,
+  OPERATION_IS_NOT_ALLOWED,
+  TARGET_IS_NOT_EXIST
 };

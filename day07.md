@@ -614,6 +614,8 @@ const authorization = ctx.headers.authorization;
 - 当多段代码（意思是放在多个函数里面）其多个函数被其他地方引用，则用类封装
   - 就是放在Controller里面，因为里面是类
 
+- 还有中间件有next()，而控制器没有（一般是use最后一个，直接ctx.body）
+
 
 
 ### postman中快速获取token的脚本
@@ -883,4 +885,80 @@ import x from './x.js'
   }
 }
 ```
+
+### parms 和 query
+
+- http://localhost:8000/moment/1  这是 ctx.params
+- http://localhost:8000/moment?offset=10&size=10 这是ctx.query
+
+
+
+
+
+### 改
+
+- momentRouter.patch
+
+```js
+UPDATE moment set content = ? WHERE id = ?;
+```
+
+
+
+### 一般await connection.execute(statement,关于数据库的操作有问题，控制台不会有报错提示
+
+- 测试
+
+  ```js
+      console.log("sdfsd");
+      const [result] = await connection.execute(statement, [
+        id,
+        user_id,
+      ]);
+      console.log("sdfsd");
+  ```
+
+  - 第二个log没执行就是数据库操作问题
+
+
+
+
+
+### 删
+
+```js
+DELETE FROM moment WHERE id =?;
+```
+
+
+
+### ？数据库占位符问题
+
+- 报错代码
+
+```js
+const statement = "SELECT * FROM ? where id = ? and user_id = ?;";
+```
+
+- 问题在于 **`?` 占位符只能替换“值”(value)**，不能替换 **表名/字段名/SQL 关键字**（比如 `FROM moment` 里的 `moment`）。
+
+- 解决
+
+  ```js
+      const statement = `SELECT * FROM ${pureName} where id = ? and user_id = ?;`;
+  ```
+
+  
+
+### 权限验证不单只对moment，对所有表都可以
+
+```js
+  const keyName = Object.keys(ctx.params)[0]
+  const resourceId = ctx.params[keyName]
+  const pureName = keyName.replace('id','')  
+```
+
+
+
+### 关键词不可以当变量面，比如delete
 
