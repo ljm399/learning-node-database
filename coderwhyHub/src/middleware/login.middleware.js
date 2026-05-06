@@ -55,7 +55,6 @@ const verifyAuth = async (ctx, next) => {
   }
 
   ctx.user = payload;
-  
 
   // 3.成功就执行下个中间件
   await next();

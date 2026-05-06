@@ -3,9 +3,7 @@ const { md5Password } = require("../utils/md5");
 class UserService {
   async createUser(user) {
     const { name, password } = user;
-
     const statement = "INSERT INTO user(name, password) VALUES (?, ?)";
-
     const result = await connection.execute(statement, [name, password]);
     return result;
   }
@@ -25,6 +23,12 @@ class UserService {
     // console.log(values,'values')
     if (!values.length) return false;
     return values[0].password === password;
+  }
+
+  async updateUserAvatar(avatarUrl, id) {
+    const statement = "UPDATE user SET avatar_url = ? WHERE id = ?;";
+    const [result] = await connection.execute(statement, [avatarUrl, id]);
+    return result;
   }
 }
 

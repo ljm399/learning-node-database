@@ -752,8 +752,6 @@ module.exports = { loginRouter }
 
 这时你不能直接 `app.use(router.routes())`，因为 `router` 不是 Router 实例，而是一个对象。
 
-
-
 ##### 解决方式一：
 
 你需要取出来再注册，例如：

@@ -155,8 +155,18 @@ coderhub 通常是一个“类社交/内容发布”的后端练习项目：
 
 - 将一些常量保持.env
   - npm i dotevt
+  
   - dotenv.config()
+  
   - {SERVER_PORT} = process.env
+  
+  - .env
+  
+    ```bash
+    SERVER_PORT = 8000
+    ```
+  
+    
 
 
 项目初始化的目标是：跑起来一个最小 Koa 服务 + 能读取环境变量 + 有清晰目录结构。

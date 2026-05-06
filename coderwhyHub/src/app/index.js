@@ -3,6 +3,8 @@ const koa = require("koa");
 // const { loginRouter } = require("../router/login.router");
 const koaBodyparser = require('koa-bodyparser');
 const { hyAutoGetRouter } = require("../router");
+const { roleRouter } = require("../cms/router/role.router");
+const { menuRouter } = require("../cms/router/menu.router");
 // 定义app
 const app = new koa();
 
@@ -15,6 +17,14 @@ app.use(koaBodyparser());
 // app.use(loginRouter.routes());
 // app.use(loginRouter.allowedMethods());
 hyAutoGetRouter(app)
+
+// 角色
+app.use(roleRouter.routes());
+app.use(roleRouter.allowedMethods());
+
+// 菜单
+app.use(menuRouter.routes());
+app.use(menuRouter.allowedMethods());
 
 
 // 导出

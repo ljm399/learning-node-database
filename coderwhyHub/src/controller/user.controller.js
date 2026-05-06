@@ -1,4 +1,7 @@
 const UserService = require("../server/user.server");
+const fileServer = require("../server/file.server");
+const { UPLOAD_PATH } = require("../config/path");
+const fs = require("fs");
 class UserController {
   async createUser(ctx) {
     const user = ctx.request.body;
@@ -31,6 +34,25 @@ class UserController {
       message: "创建用户成功",
       data: result,
     };
+  }
+
+  async showAvatarImage(ctx) {
+    const { userId } = ctx.params;
+    // console.log(userId, "userId");
+    const avatarInfo = await fileServer.queryAvatarWithUserId(userId);
+    // console.log(avatarInfo, "avatarInfo");
+    if (!avatarInfo) {
+      ctx.status = 404;
+      ctx.body = {
+        code: 404,
+        message: "用户头像不存在",
+      };
+      return;
+    }
+
+    const { filename, mimetype } = avatarInfo;
+    ctx.type = mimetype;
+    ctx.body = fs.createReadStream(`${UPLOAD_PATH}/${filename}`);
   }
 }
 

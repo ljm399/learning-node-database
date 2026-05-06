@@ -59,6 +59,8 @@ class momentController {
     const { offset, size } = ctx.query;
 
     // 数据库的操作
+    console.log('rrrr');
+    
     const result = await momentServer.getMomentList(offset, size);
 
     // 返回结果
@@ -85,6 +87,26 @@ class momentController {
     ctx.body = {
       code: 200,
       data,
+    };
+  }
+
+  async addLabels(ctx) {
+    const { momentid } = ctx.params;
+    const labels = ctx.labels || [];
+    console.log(labels, 'labels');
+
+    for (const label of labels) {
+      const labelId = label.id;
+      if (!labelId) continue;
+      const has = await momentServer.hasLabel(momentid, labelId);
+      if (has) continue;
+      await momentServer.addLabel(momentid, labelId);
+    }
+
+    ctx.body = {
+      code: 200,
+      message: "添加标签成功",
+      data: labels,
     };
   }
 }

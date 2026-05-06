@@ -23,6 +23,7 @@ class momentServer {
 
   // 查
   async getMomentList(offset = 0, size = 10) {
+    console.log('offset:', offset, 'size:', size);
     const statement = `
       SELECT
         m.id AS id,
@@ -32,52 +33,85 @@ class momentServer {
         JSON_OBJECT(
           'id', u.id,
           'name', u.name,
+          'avaterUrl',u.avatar_url,
           'createAt', u.createAt,
           'updateAt', u.updateAt
         ) AS user,
-        (SELECT COUNT(*) FROM comment WHERE comment.moment_id = m.id) commentCount
+        (SELECT COUNT(*) FROM comment WHERE comment.moment_id = m.id) commentCount,
+        (SELECT COUNT(*) FROM moment_label ml WHERE ml.moment_id = m.id) labelCount
       FROM moment m
       LEFT JOIN user u ON u.id = m.user_id
       LIMIT ?, ?;
     `;
+    // console.log('statement:', statement);
     const [result] = await connection.execute(statement, [offset, size]);
+    // console.log('result:', result);
     return result;
   }
   async getMomentDetail(detailId) {
     const statement = `
       SELECT
-        m.id AS id,
-        m.content AS content,
-        m.createAt AS createAt,
-        m.updateAt AS updateAt,
+        m.id id,
+        m.content content,
+        m.createAt createTime,
+        m.updateAt updateTime,
         JSON_OBJECT(
           'id', u.id,
           'name', u.name,
-          'createAt', u.createAt,
-          'updateAt', u.updateAt
-        ) AS user,
+          'avatarUrl', u.avatar_url,
+          'createTime', u.createAt,
+          'updateTime', u.updateAt
+        ) user,
         (
-          SELECT COALESCE(
-            JSON_ARRAYAGG(
-            JSON_OBJECT(
-                'id', cm.id,
-                'content', cm.content,
-                'user', JSON_OBJECT('id', uc.id, 'name', uc.name),
-                'comment_id', cm.comment_id
-              )
-            ),
-            JSON_ARRAY()
-          )
-          FROM comment cm
-          LEFT JOIN user uc on uc.id = cm.user_id
-          WHERE cm.moment_id = m.id
-        ) AS comment
+          SELECT
+            JSON_ARRAYAGG(JSON_OBJECT(
+              'id', c.id,
+              'content', c.content,
+              'commentId', c.comment_id,
+              'user', JSON_OBJECT('id', cu.id, 'name', cu.name)
+            ))
+          FROM comment c
+          LEFT JOIN user cu ON c.user_id = cu.id
+          WHERE c.moment_id = m.id
+        ) comments,
+        (
+          JSON_ARRAYAGG(JSON_OBJECT(
+            'id', l.id,
+            'name', l.name
+          ))
+        ) labels
       FROM moment m
       LEFT JOIN user u ON u.id = m.user_id
-      where m.id = ?
+      LEFT JOIN moment_label ml ON ml.moment_id = m.id
+      LEFT JOIN label l ON ml.label_id = l.id
+      WHERE m.id = ?
       GROUP BY m.id;
     `;
-    const [result] = await connection.execute(statement, [detailId]);
+    try {
+      const [result] = await connection.execute(statement, [detailId]);
+      return result;
+    } catch (error) {
+      console.error('getMomentDetail error:', error);
+      return [];
+    }
+  }
+
+  async hasLabel(momentId, labelId) {
+    const statement = `
+      SELECT *
+      FROM moment_label
+      WHERE moment_id = ? AND label_id = ?;
+    `;
+    const [result] = await connection.execute(statement, [momentId, labelId]);
+    return !!result.length;
+  }
+
+  async addLabel(momentId, labelId) {
+    const statement = `
+      INSERT INTO moment_label (moment_id, label_id)
+      VALUES (?, ?);
+    `;
+    const [result] = await connection.execute(statement, [momentId, labelId]);
     return result;
   }
 }

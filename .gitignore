@@ -23,6 +23,9 @@ coverage/
 # build outputs
 build/
 dist/
+keys/private.key
+keys/public.key
+
 
 # environment files
 .env

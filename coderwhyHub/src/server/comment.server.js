@@ -2,8 +2,9 @@ const connection = require("../app/database");
 class commentServer{
   async create(content, momentid, id) {
     const statement = "INSERT INTO `comment` (content, moment_id, user_id) VALUES (?, ?, ?);"
+    console.log(content,momentid,id,'cmi');
     const result = await connection.execute(statement, [content, momentid, id])
-    // console.log(result,'res')
+    console.log(result,'res')
     return result[0]
   }
 
