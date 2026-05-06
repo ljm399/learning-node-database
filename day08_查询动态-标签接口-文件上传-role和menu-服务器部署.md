@@ -594,9 +594,13 @@ GROUP BY m.id;
 
 
 
-# 三.文化上传
+# 三.文件上传
 
-### 安装：npm i @koa/multer
+### 安装：
+
+### npm i multer
+
+### npm i @koa/multer
 
 文件上传一般要解决 3 件事：
 
