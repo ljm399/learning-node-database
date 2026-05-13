@@ -1367,7 +1367,7 @@ systemctl status mysqld
 systemctl enable mysqld
 ```
 
-- mysql
+- mysql（密码：`Root@2026!`）---jenkins也是这个：mjlcode（用户名）
 
 ```sql
 -- 进入mysql
@@ -1521,6 +1521,16 @@ ufw status
 
 
 
+## 数据库操作
+
+````sql
+UPDATE oppo_category
+SET pic_str = REPLACE(pic_str, 'http://localhost:8000', 'http://106.53.112.195:8000')
+WHERE pic_str LIKE 'http://localhost:8000%';
+````
+
+
+
 ### 4.3.部署Node服务器
 
 - 使用remote
@@ -1590,6 +1600,10 @@ ufw status
  # 命名启动（示例：启动 app.js，并命名为 my-api）
 cd coderwhyHub
 pm2 start ./src/main.js --name coderwhyHub
+pm2 start ./.output/server/index.mjs --name oppo-nuxt
+
+指定端口
+PORT=8000 pm2 start ./.output/server/index.mjs --name oppo-nuxt
 
  # 查看所有进程状态
  pm2 list
@@ -1614,3 +1628,251 @@ pm2 start ./src/main.js --name coderwhyHub
 
  # 以 cluster 模式启动多个进程（示例：启动 4 个进程做负载均衡）
  pm2 start app.js -i 4
+
+ ```
+
+
+
+#### 服务器集群
+
+- 使用
+
+  - 服务器在对应文件夹执行pm2 init simple
+
+    - 就会生成 ecosystem.config.js配置文件
+  
+  - 然后
+  
+    ```
+    // ecosystem.config.js
+    // PM2 的“应用清单”配置文件：
+    // - 你可以在这里统一配置：启动入口、进程数(集群)、环境变量、日志位置、自动重启策略
+    // - 之后只需要一条命令：pm2 start ecosystem.config.js 即可按配置启动
+    module.exports = {
+      apps: [
+        {
+          name: "coderwhyHub", // 应用名称（pm2 list / pm2 logs 时用这个名字）
+          script: "./src/main.js", // 启动入口（等同于 node ./src/main.js）
+    
+          // 关键：集群模式（多进程）
+          exec_mode: "cluster", // cluster = 多进程负载均衡；fork = 单进程
+          instances: "max", // 启动的进程数：max=按CPU核数启动；也可写数字如 2/4
+    
+          // 为什么要用 cluster/fork/instances（核心理解）：
+          // 1) fork（单进程）
+          //    - 作用：只启动 1 个 Node 进程
+          //    - 场景：小项目/调试阶段/你明确只想跑一个进程时
+          //    - 特点：部署简单，但只能吃到 1 个 CPU 核心的算力
+          //
+          // 2) cluster（多进程 + PM2 负载均衡）
+          //    - 作用：启动多个 Node 进程，并由 PM2 在同一个端口上做请求分发（负载均衡）
+          //    - 原因：Node 单进程是单线程模型（事件循环），一旦并发/CPU 压力上来，单进程容易成为瓶颈
+          //    - 收益：把请求分摊到多个进程上，提升吞吐；任意一个进程崩了，PM2 可自动拉起，整体更稳
+          //
+          // 3) instances（进程数量）
+          //    - 作用：决定 cluster 模式下启动多少个进程
+          //    - 写 "max"：按机器 CPU 核数启动（常用默认）
+          //    - 写数字：你想限制进程数量时用（例如 2/4），避免进程太多抢内存/CPU
+    
+          // 关键：环境变量（这里的值会注入到 process.env）
+          // 注意：如果你项目里已经用 dotenv 读取 .env，也可以不在这里写 env
+          env: {
+            // NODE_ENV: "production",
+            SERVER_PORT: 8000,
+          },
+    
+          // 下面都是了解即可
+          // 关键：自动重启策略（防止应用异常退出后服务不可用）
+          autorestart: true,
+          watch: false, // 生产环境通常不建议 watch（避免文件变化导致频繁重启）
+          max_memory_restart: "300M", // 进程超过内存阈值自动重启（避免内存泄漏拖死）
+    
+          // 关键：日志（排查线上问题非常重要）
+          // - out_file：标准输出日志
+          // - error_file：错误日志
+          // - merge_logs：多个进程日志合并
+          // out_file: "./logs/pm2-out.log",
+          // error_file: "./logs/pm2-error.log",
+          // merge_logs: true,
+          // log_date_format: "YYYY-MM-DD HH:mm:ss",
+        },
+      ],
+    };
+    ```
+  
+  - 启动/重启/查看
+  
+    ```bash
+    # 进入项目目录后执行（ecosystem.config.js 所在目录）
+    pm2 start ecosystem.config.js
+    
+    # 查看进程列表
+    pm2 list
+    
+    # 查看日志
+    pm2 logs coderwhyHub
+    
+    # 重启
+    pm2 restart coderwhyHub
+    
+    # 删除某个
+    Pm2 stop id
+    
+    # 停止并删除
+    pm2 delete coderwhyHub
+    ```
+  
+    
+  
+
+
+
+#### jenkins知识补充
+
+- 作用
+  - CI/CD（持续集成/持续交付）工具：把“拉代码 -> 安装依赖 -> 构建 -> 测试 -> 打包 -> 部署”自动化
+  - 减少手工操作：避免每次上线都重复执行一堆命令
+  - 可追溯：每次构建都有记录（谁触发、用的哪次提交、日志、产物）
+  - 可扩展：通过插件接入 Git、Docker、K8s、通知（邮件/钉钉/企业微信）等
+
+- “巡航”与“定时构建”的区别（Jenkins 标准叫法）
+  - “巡航”通常指：`Poll SCM`（轮询 SCM）
+    - Jenkins 按你设置的 cron 频率去检查代码仓库是否有新提交
+    - 有新提交才触发构建
+    - 特点：不需要仓库回调（webhook），但会产生轮询请求
+  - “定时构建”指：`Build periodically`（周期性构建）
+    - Jenkins 按 cron 到点就构建，不管代码有没有变化
+    - 适合：定时跑脚本、定时备份、定时刷新数据、定时跑爬虫/报表等
+
+- Jenkins 是怎么拿到代码并执行脚本的
+  - Jenkins 会在某个构建节点（agent）上为每个 job 分配一个工作目录（workspace）
+  - 执行构建前通常会：
+    - 通过 `Git` 插件 `checkout` 代码（本质就是在 workspace 里 `git clone`/`git fetch` + `git checkout`）
+    - 然后在这个 workspace 中执行你配置的构建命令（npm、pm2、shell 等）
+  - workspace 默认路径（常见）
+    - Linux: `/var/lib/jenkins/workspace/<job-name>/`
+    - Windows: `C:\ProgramData\Jenkins\.jenkins\workspace\<job-name>\`
+  - 结论：不是“安装到 Jenkins 知道的位置”这么笼统，而是“检出到 job 的 workspace”
+
+- 推荐使用 SSH（拉代码/连接服务器部署）
+  - 拉 Git 仓库建议用 SSH（相对 Token/账号密码更适合服务器）
+    - 你需要在 Jenkins 里配置凭据：`Manage Jenkins` -> `Credentials`
+      - 类型常用：`SSH Username with private key`
+    - 在 job 的源码管理（SCM）里用形如：`git@github.com:xxx/xxx.git`
+  - 如果是“部署到远程服务器执行命令”
+    - 常见做法：在 Pipeline 里用 `ssh`/`scp`（或用专门的发布方式：Docker/K8s/rsync）
+    - 要点
+      - 给 Jenkins 节点准备私钥（或用 Credentials 注入）
+      - 确保目标服务器 `~/.ssh/authorized_keys` 配好公钥
+      - 首次连接的 host key 校验要处理（避免交互式提示导致构建卡住）
+
+- Freestyle job、Trigger、Pipeline 的区别
+  - Freestyle job（自由风格任务）
+    - 以 UI 点选配置为主（源码、构建步骤、触发器、构建后操作）
+    - 优点：上手快
+    - 缺点：配置不易版本化、迁移/复用困难、复杂流程不好表达
+  - Trigger（触发器）
+    - 不是一种 job 类型，而是“什么条件触发构建”的配置
+    - 常见触发方式
+      - 手动点击 Build Now
+      - `Poll SCM`（轮询仓库有变更才构建）
+      - `Build periodically`（不管变更，按周期构建）
+      - Webhook（例如 GitHub/GitLab 推送回调触发）
+  - Pipeline（流水线）
+    - 用 `Jenkinsfile`（Groovy）把构建流程写成代码（Pipeline as Code）
+    - 优点
+      - 流程可版本化（随代码一起提交）
+      - 可读性/可维护性更好，适合多环境、多阶段（build/test/deploy）
+      - 更容易做并行、条件、人工审批等
+    - 缺点：需要一点脚本/流水线语法基础
+
+
+
+
+
+#### jenkins太吃内存，你可以让ai帮你生成个脚本，定时构建就行
+
+
+
+
+
+## jenkins问题解答：
+
+在 Jenkins 里 **“拉取代码”不是靠你在脚本里手动 `git pull`**，而是靠 Job 配置里的 **SCM（Source Code Management）步骤自动完成的**。
+
+也就是说：
+
+- 你在 `Job -> Source Code Management -> Git` 配好仓库地址后
+- Jenkins 每次构建开始时会先执行 **Checkout**（本质是 `git fetch` + `git checkout`，必要时相当于更新 workspace）
+- 然后才执行你的脚本
+
+
+
+但 **构建**不等于 **部署**
+
+- 但你如果希望“远程服务器的某个目录”也更新代码（比如 `/www/myapp`），那需要你在部署步骤里：
+  - 要么把构建产物 `scp/rsync` 到那个目录
+  - 要么让服务器在那个目录里 `git pull`（通过 ssh 执行）
+
+```js
+set -e
+
+# 1) 构建（看你项目是否需要）
+npm ci
+npm run build
+
+# 2) 同步到运行目录（示例：Node 后端项目）
+rsync -av --delete ./ /www/myapp/
+
+# 3) 重启服务（示例：pm2）
+cd /www/myapp
+pm2 restart your_app_name
+```
+
+
+
+
+
+## 注意：数据库的表转出和存入可能表名字不同
+
+- 对比转出和存入的表名
+
+
+
+### docker
+
+Docker 简单说就是一种**把应用和它的运行环境一起打包、到处都能跑**的工具，解决 “在我电脑能跑，在服务器就报错” 的问题。
+
+##### 一、核心作用（一句话）
+
+- **一次构建，随处运行**：把代码、依赖、配置、系统库全部打包成一个**容器**，开发 / 测试 / 生产环境完全一致。
+
+##### 二、主要好处
+
+1. 环境一致，告别 “本地能跑”
+
+   - 容器里包含完整运行环境，和宿主机无关，避免依赖版本、配置差异导致的问题。
+
+   
+
+2. 隔离应用，互不干扰
+
+   - 每个应用在独立容器里，端口、文件系统、进程都隔离，不会互相冲突。
+
+   
+
+3. 轻量高效，比虚拟机快得多
+
+   - 共享主机内核，不用装完整系统；**秒级启动**、占用内存小（MB 级），一台机器能跑上千个容器。
+
+   
+
+4. 快速部署与扩容
+
+   - 打包好的镜像可直接分发，上线 / 回滚快；流量高时快速多开容器扩容。
+
+   
+
+5. 标准化交付，方便协作
+
+   - 开发打包镜像→测试直接用→运维直接部署，全流程环境统一。
