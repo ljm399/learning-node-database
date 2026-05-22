@@ -8,6 +8,7 @@ const { hyAutoGetRouter } = require("../router");
 const { roleRouter } = require("../cms/router/role.router");
 const { menuRouter } = require("../cms/router/menu.router");
 const { oppoRouter } = require("../cms/router/oppo.router");
+const { redwoodRouter } = require("../cms/router/redwood.router");
 // 定义app
 const app = new koa();
 
@@ -77,6 +78,9 @@ app.use(menuRouter.allowedMethods());
 app.use(oppoRouter.routes());
 app.use(oppoRouter.allowedMethods());
 
+// redwood
+app.use(redwoodRouter.routes());
+app.use(redwoodRouter.allowedMethods());
 
 // 导出
 module.exports = app
